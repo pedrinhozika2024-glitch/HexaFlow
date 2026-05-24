@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel de Controle - Hexaflow Premium</title>
+    <style>
+        :root {
+            --bg-main: #111214; --bg-panel: #1e1f22; --bg-input: #313338;
+            --text-main: #f2f3f5; --text-muted: #b5bac1; --accent: #ff007f;
+            --discord-blurple: #5865f2;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 30%; background: var(--bg-panel); padding: 20px; border-right: 1px solid #2b2d31; overflow-y: auto; height: 100%; }
+        .workspace { width: 70%; padding: 25px; display: flex; flex-direction: column; height: 100%; }
+        
+        .tab-menu { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #2b2d31; padding-bottom: 10px; }
+        .tab-btn { background: #2b2d31; border: none; color: white; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .tab-btn.active { background: var(--accent); }
+
+        .cat-title { font-size: 11px; font-weight: bold; text-transform: uppercase; color: var(--accent); margin: 15px 0 6px 0; letter-spacing: 0.5px; }
+        .btn-bloco-catalogo { width: 100%; padding: 9px; background: #2b2d31; border: 1px solid #3a3c40; color: white; border-radius: 4px; text-align: left; margin-bottom: 5px; cursor: pointer; font-size: 12px; }
+        .btn-bloco-catalogo:hover { background: var(--accent); }
+        
+        label { display: block; font-size: 12px; color: var(--text-muted); margin-top: 8px; }
+        input, select, textarea { width: 100%; background: var(--bg-input); border: none; padding: 10px; border-radius: 4px; color: #fff; margin-top: 5px; outline: none; margin-bottom: 5px; }
+        
+        .bloco-instalado { background: #2b2d31; border-left: 5px solid var(--discord-blurple); padding: 15px; border-radius: 4px; margin-bottom: 10px; position: relative; }
+        .btn-excluir { position: absolute; right: 10px; top: 10px; color: #da373c; cursor: pointer; border: none; background: none; font-weight: bold; }
+        
+        .area-fluxo { border: 2px dashed #4e5058; background: #1a1b1e; border-radius: 6px; padding: 15px; flex: 1; overflow-y: auto; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .btn-compilar { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 4px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
+        .logout-link { color: #da373c; float: right; text-decoration: none; font-size: 14px; font-weight: bold; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <a href="/logout" class="logout-link">Sair</a>
+        <h2>Hexaflow Pro</h2>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">Painel: {{ usuario }}</p>
+
+        <div class="tab-menu">
+            <button class="tab-btn active" id="btn_tab_v1" onclick="mudarVersao('v1')">Embed V1 (Webhook)</button>
+            <button class="tab-btn" id="btn_tab_v2" onclick="mudarVersao('v2')">Embed V2 (Bot Pro)</button>
+        </div>
+
+        <div id="painel_v1">
+            <h3>Envio Direto via Webhook</h3>
+            <label>URL do Webhook</label>
+            <input type="text" id="v1_url" placeholder="https://discord.com/api/webhooks/...">
+            <label>Título da Embed</label>
+            <input type="text" id="v1_titulo" placeholder="Ex: AVISO GERAL">
+            <label>Descrição</label>
+            <textarea id="v1_descricao" rows="4" placeholder="Escreva aqui..."></textarea>
+            <label>URL do Banner</label>
+            <input type="text" id="v1_banner" placeholder="https://...">
+            <label>Cor Lateral</label>
+            <input type="color" id="v1_cor" value="#ff007f">
+            <button class="btn-compilar" style="margin-top: 15px;" onclick="dispararV1()">Enviar Mensagem V1</button>
+        </div>
+
+        <div id="painel_v2" style="display: none;">
+            <h3>Configuração Global</h3>
+            <input type="password" id="v2_token" placeholder="Token Secreto do Bot">
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="v2_prefixo" value="!" style="width: 50px; text-align: center;">
+                <input type="text" id="v2_comando" placeholder="Comando (ex: testar)">
+            </div>
+
+            <hr style="border-color: #2b2d31; margin: 15px 0;">
+            <h3>Biblioteca de Ações V2</h3>
+            <div id="container_catalogo"></div>
+        </div>
+    </div>
+
+    <div class="workspace">
+        <h3>Área de Trabalho e Fluxo No-Code</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Desenvolva e aplique as ordens de execução de forma direta.</p>
+        
+        <div class="area-fluxo" id="area_fluxo_v2" style="display: none;">
+            <div style="color: #4e5058; text-align: center; margin: auto;" id="texto_vazio">Seu comando está vazio. Clique nas ações ao lado para construir.</div>
+        </div>
+        
+        <div id="preview_v1_container" style="flex: 1; display: flex; align-items: center; justify-content: center; background: #1a1b1e; border-radius: 6px;">
+            <p style="color: #4e5058;">A Embed V1 será enviada de forma direta através da API do Webhook.</p>
+        </div>
+
+        <button class="btn-compilar" id="btn_acao_v2" style="display: none;" onclick="compilarEExecutarV2()">Compilar Estrutura & Ligar Bot Real</button>
+    </div>
+
+    <script>
+        // ENGINE COM OS BLOCOS POR CATEGORIA REQUISITADOS
+        const BANCO_DE_BLOCOS = {
+            "📥 INPUTS E VARIÁVEIS": [
+                { id: "input_texto", nome: "Input de Texto (String)", campos: [{ label: "Nome da Variável", classe: "var_nome", padrao: "texto_info" }, { label: "Texto Padrão", classe: "v_text", padrao: "" }] },
+                { id: "input_numero", nome: "Input Numérico", campos: [{ label: "Nome da Variável", classe: "var_nome", padrao: "num" }, { label: "Valor", classe: "v_text", padrao: "0" }] }
+            ],
+            "💬 CHAT E MENSAGENS": [
+                { id: "enviar_mensagem", nome: "Enviar Mensagem Chat", campos: [{ label: "Texto (use {autor} para marcar)", classe: "txt" }] },
+                { id: "enviar_embed_completa", nome: "Enviar Embed Premium (Nix Style)", campos: [{ label: "Título", classe: "tit" }, { label: "Descrição", classe: "desc" }, { label: "Banner URL", classe: "ban" }, { label: "Cor Hex", classe: "cor", tipo: "color", padrao: "#ff007f" }] }
+            ],
+            "🔑 CARGOS E PERMISSÕES": [
+                { id: "add_cargo_automatico", nome: "Adicionar Cargo Automático", campos: [{ label: "ID do Cargo do Discord", classe: "cargo_id" }] }
+            ],
+            "📁 GERENCIAMENTO CANAIS": [
+                { id: "deletar_canal_atual", nome: "Deletar Canal Atual", campos: [] }
+            ]
+        };
+
+        let contadorV2 = 0;
+
+        function mudarVersao(versao) {
+            const v1Ativo = versao === 'v1';
+            document.getElementById('btn_tab_v1').className = v1Ativo ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('btn_tab_v2').className = v1Ativo ? 'tab-btn' : 'tab-btn active';
+            document.getElementById('painel_v1').style.display = v1Ativo ? 'block' : 'none';
+            document.getElementById('painel_v2').style.display = v1Ativo ? 'none' : 'block';
+            document.getElementById('area_fluxo_v2').style.display = v1Ativo ? 'none' : 'flex';
+            document.getElementById('preview_v1_container').style.display = v1Ativo ? 'flex' : 'none';
+            document.getElementById('btn_acao_v2').style.display = v1Ativo ? 'none' : 'block';
+        }
+
+        function renderizarMenu() {
+            const container = document.getElementById('container_catalogo');
+            for (let cat in BANCO_DE_BLOCOS) {
+                const div = document.createElement('div');
+                div.innerHTML = `<div class="cat-title">${cat}</div>`;
+                BANCO_DE_BLOCOS[cat].forEach(bloco => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-bloco-catalogo';
+                    btn.innerText = `+ ${bloco.nome}`;
+                    btn.onclick = () => encaixarBloco(bloco);
+                    div.appendChild(btn);
+                });
+                container.appendChild(div);
+            }
+        }
+
+        function encaixarBloco(bloco) {
+            document.getElementById('texto_vazio').style.display = 'none';
+            contadorV2++;
+            const area = document.getElementById('area_fluxo_v2');
+            const div = document.createElement('div');
+            div.className = 'bloco-instalado';
+            div.id = `bloco_v2_${contadorV2}`;
+            div.setAttribute('data-tipo', bloco.id);
+
+            let html = `<button class="btn-excluir" onclick="document.getElementById('${div.id}').remove()">X</button><b>⚡ ${bloco.nome}</b>`;
+            bloco.campos.forEach(c => {
+                html += `<label>${c.label}</label><input type="${c.tipo || 'text'}" class="${c.classe}" value="${c.padrao || ''}">`;
+            });
+
+            div.innerHTML = html;
+            area.appendChild(div);
+        }
+
+        async function dispararV1() {
+            const payload = {
+                url: document.getElementById('v1_url').value,
+                titulo: document.getElementById('v1_titulo').value,
+                descricao: document.getElementById('v1_descricao').value,
+                banner: document.getElementById('v1_banner').value,
+                cor: document.getElementById('v1_cor').value
+            };
+            const res = await fetch('/api/v1/webhook', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        async function compilarEExecutarV2() {
+            const lista = [];
+            const componentes = document.getElementById('area_fluxo_v2').children;
+
+            for (let el of componentes) {
+                if (el.id === 'texto_vazio') continue;
+                let dados = { tipo: el.getAttribute('data-tipo') };
+                el.querySelectorAll('input').forEach(inp => { dados[inp.className] = inp.value; });
+                lista.push(dados);
+            }
+
+            const pacote = {
+                token: document.getElementById('v2_token').value,
+                prefixo: document.getElementById('v2_prefixo').value,
+                nome_comando: document.getElementById('v2_comando').value || 'executar',
+                blocos: lista
+            };
+
+            const res = await fetch('/api/v2/ligar-bot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pacote) });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        renderizarMenu();
+    </script>
+</body>
+</html>
