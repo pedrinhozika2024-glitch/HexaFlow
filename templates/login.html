@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Hexaflow - Login Premium</title>
+    <style>
+        body { background-color: #111214; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: #1e1f22; padding: 40px; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid #2b2d31; }
+        h2 { text-align: center; margin-bottom: 25px; color: #ff007f; font-weight: 700; letter-spacing: 1px; }
+        label { display: block; margin-bottom: 6px; font-size: 14px; color: #b5bac1; }
+        input { width: 100%; padding: 12px; background: #313338; border: none; border-radius: 4px; color: #fff; margin-bottom: 20px; outline: none; box-sizing: border-box; }
+        input:focus { box-shadow: 0 0 0 2px #ff007f; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 15px; margin-bottom: 10px; }
+        .btn-primary { background: #ff007f; color: white; }
+        .btn-secondary { background: #4f545c; color: white; }
+        .flash-msg { padding: 10px; background: #da373c; border-radius: 4px; text-align: center; margin-bottom: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>HEXAFLOW</h2>
+        
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="flash-msg">{{ messages[0] }}</div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <label>E-mail Corporativo / Pessoal</label>
+            <input type="email" name="email" required placeholder="seuemail@exemplo.com">
+            
+            <label>Senha de Acesso</label>
+            <input type="password" name="senha" required placeholder="••••••••">
+            
+            <button type="submit" name="acao" value="login" class="btn btn-primary">Entrar no Painel</button>
+            <button type="submit" name="acao" value="cadastro" class="btn btn-secondary">Criar Nova Conta</button>
+        </form>
+    </div>
+</body>
+</html>
