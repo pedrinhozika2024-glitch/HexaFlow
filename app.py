@@ -59,7 +59,7 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email')
         senha = request.form.get('senha')
-        acao = request.form.get('acao') # 'login' ou 'cadastro'
+        acao = request.form.get('acao')
 
         conn = sqlite3.connect("database.db")
         cursor = conn.cursor()
@@ -137,48 +137,91 @@ def api_v1_webhook():
     except Exception as e:
         return jsonify({"status": "erro", "message": str(e)}), 500
 
-# EMBED V2: Interpretador de Cascata de Blocos para o Bot Real
+# EMBED V2: Interpretador de Cascata de Blocos Completo para o Bot Real
 def rodar_motor_bot_v2(token, prefixo, blocos_config, nome_comando):
     asyncio.set_event_loop(asyncio.new_event_loop())
+    
+    # Ativa as intenções necessárias para gerenciar membros, cargos e mensagens
     intents = discord.Intents.all()
     bot = commands.Bot(command_prefix=prefixo, intents=intents)
 
+    @bot.event
+    async def on_ready():
+        print(f"🔥 Bot {bot.user.name} conectado com sucesso via Hexaflow V2!")
+
     @bot.command(name=nome_comando)
     async def comando_customizado(ctx):
-        contexto_vars = {"autor": ctx.author.mention, "canal": ctx.channel.name}
+        # Variáveis base do ambiente do Discord
+        contexto_vars = {
+            "autor": ctx.author.mention,
+            "canal": ctx.channel.name,
+            "servidor": ctx.guild.name
+        }
 
+        # Executa cada bloco de cima para baixo na ordem exata da área de trabalho
         for bloco in blocos_config:
             tipo = bloco.get('tipo')
 
-            # Inputs e variáveis
+            # 📥 CAPTURA DE INPUTS E PROCESSAMENTO DE VARIÁVEIS
             if tipo == 'input_texto':
-                contexto_vars[bloco.get('var_nome', 'texto')] = bloco.get('v_text', '')
-            
-            # Chat e mensagens
+                nome_var = bloco.get('var_nome', 'texto_info')
+                valor_var = bloco.get('v_text', '')
+                contexto_vars[nome_var] = valor_var
+                
+            elif tipo == 'input_numero':
+                nome_var = bloco.get('var_nome', 'num')
+                valor_var = bloco.get('v_text', '0')
+                contexto_vars[nome_var] = valor_var
+
+            # 💬 GERENCIAMENTO DE MENSAGENS E EMBEDS
             elif tipo == 'enviar_mensagem':
-                texto_final = bloco.get('txt', 'Mensagem No-Code')
+                texto_final = bloco.get('txt', '')
+                # Substitui as variáveis formatadas como {autor} ou personalizadas
                 for var, val in contexto_vars.items():
                     texto_final = texto_final.replace(f"{{{var}}}", str(val))
-                await ctx.send(texto_final)
+                if texto_final:
+                    await ctx.send(texto_final)
 
             elif tipo == 'enviar_embed_completa':
+                titulo_final = bloco.get('tit', '')
+                desc_final = bloco.get('desc', '')
+                
+                # Aplica o sistema de variáveis também dentro da embed premium
+                for var, val in contexto_vars.items():
+                    titulo_final = titulo_final.replace(f"{{{var}}}", str(val))
+                    desc_final = desc_final.replace(f"{{{var}}}", str(val))
+                
                 cor = int(bloco.get('cor', '#ff007f').replace('#', ''), 16)
-                embed = discord.Embed(title=bloco.get('tit'), description=bloco.get('desc'), color=cor)
-                if bloco.get('ban'):
+                embed = discord.Embed(title=titulo_final, description=desc_final, color=cor)
+                
+                if bloco.get('ban') and bloco.get('ban').startswith('http'):
                     embed.set_image(url=bloco['ban'])
                 await ctx.send(embed=embed)
 
-            # Cargos e Moderação
+            # 🔑 GERENCIAMENTO DE CARGOS (INPUT DE CARGO)
             elif tipo == 'add_cargo_automatico':
-                cargo = ctx.guild.get_role(int(bloco.get('cargo_id')))
-                if cargo: await ctx.author.add_roles(cargo)
+                cargo_id_str = bloco.get('cargo_id')
+                if cargo_id_str and cargo_id_str.isdigit():
+                    cargo = ctx.guild.get_role(int(cargo_id_str))
+                    if cargo:
+                        try:
+                            await ctx.author.add_roles(cargo)
+                        except discord.Forbidden:
+                            await ctx.send("❌ Erro: O Bot não tem permissão hierárquica para dar este cargo.")
 
+            # 📁 GERENCIAMENTO DE CANAIS (INPUT DE CANAL / DELETAR)
             elif tipo == 'deletar_canal_atual':
-                await ctx.channel.delete()
+                try:
+                    await ctx.channel.delete()
+                except discord.Forbidden:
+                    print("Não foi possível deletar o canal: Permissão Insuficiente.")
 
     global bot_instancia
     bot_instancia = bot
-    bot.run(token)
+    try:
+        bot.run(token)
+    except Exception as e:
+        print(f"Erro ao iniciar o bot com o token fornecido: {e}")
 
 @app.route('/api/v2/ligar-bot', methods=['POST'])
 @login_required
@@ -194,13 +237,14 @@ def api_v2_ligar_bot():
         return jsonify({"status": "erro", "message": "O Token do bot é obrigatório!"}), 400
 
     if bot_instancia:
-        return jsonify({"status": "aviso", "message": "O Bot já está rodando em segundo plano!"})
+        return jsonify({"status": "aviso", "message": "Um bot já está rodando nesta sessão do painel!"})
 
+    # Cria uma Thread paralela dedicada para o bot rodar livremente sem travar o Flask
     bot_thread = threading.Thread(target=rodar_motor_bot_v2, args=(token, prefixo, blocos, nome_cmd))
     bot_thread.daemon = True
     bot_thread.start()
 
-    return jsonify({"status": "sucesso", "message": "🔥 Bot Inicializado com sucesso em segundo plano!"})
+    return jsonify({"status": "sucesso", "message": "🔥 Bot Inicializado com sucesso! Digite seu comando no Discord."})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
